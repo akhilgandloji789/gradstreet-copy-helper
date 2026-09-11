@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gradstreet Helper</title>
+    <title>GSAK</title>
     <style>
         * {
             margin: 0;
@@ -13,15 +13,14 @@
         }
 
         html, body {
-            width: 330px;
-            background: rgba(8, 10, 15, 0.92);
-            backdrop-filter: blur(28px) saturate(200%);
-            -webkit-backdrop-filter: blur(28px) saturate(200%);
+            width: 320px;
+            background: #080a0f;
             color: #f1f5f9;
-            padding: 14px;
-            border-radius: 14px;
-            border: 1px solid rgba(255, 255, 255, 0.14);
-            box-shadow: 0 24px 60px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+            padding: 12px;
+            border: none;
+            outline: none;
+            box-shadow: none;
+            border-radius: 0;
             overflow: hidden;
         }
 
@@ -32,35 +31,29 @@
             justify-content: space-between;
             margin-bottom: 12px;
             padding-bottom: 8px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
         }
 
-        .title {
-            font-size: 13px;
-            font-weight: 600;
-            color: #ffffff;
+        .logo-title {
+            font-size: 15px;
+            font-weight: 800;
+            letter-spacing: 1.5px;
+            background: linear-gradient(135deg, #ffffff 0%, #38bdf8 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
             display: flex;
             align-items: center;
             gap: 7px;
-            letter-spacing: 0.3px;
+            text-transform: uppercase;
         }
 
-        .title-dot {
-            width: 8px;
-            height: 8px;
+        .logo-dot {
+            width: 7px;
+            height: 7px;
             background: #38bdf8;
             border-radius: 50%;
-            box-shadow: 0 0 10px #38bdf8;
-        }
-
-        .badge {
-            font-size: 10px;
-            background: rgba(56, 189, 248, 0.15);
-            color: #38bdf8;
-            border: 1px solid rgba(56, 189, 248, 0.3);
-            padding: 2px 7px;
-            border-radius: 20px;
-            font-weight: 600;
+            box-shadow: 0 0 8px #38bdf8;
+            display: inline-block;
         }
 
         /* STATUS */
@@ -71,10 +64,10 @@
             gap: 8px;
             padding: 12px;
             background: rgba(255, 255, 255, 0.04);
-            border: 1px solid rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.07);
             border-radius: 8px;
             margin-bottom: 10px;
-            min-height: 46px;
+            min-height: 44px;
         }
 
         .status-text {
@@ -111,21 +104,20 @@
             align-items: center;
             justify-content: center;
             gap: 6px;
-            padding: 16px 12px;
-            background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 100%);
-            border: 1.5px dashed rgba(56, 189, 248, 0.6);
-            border-radius: 10px;
+            padding: 15px 12px;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.02) 100%);
+            border: 1.5px dashed rgba(56, 189, 248, 0.5);
+            border-radius: 8px;
             cursor: grab;
             transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.12);
             user-select: none;
         }
 
         .drag-box:hover {
             border-color: #38bdf8;
-            background: linear-gradient(135deg, rgba(56, 189, 248, 0.15) 0%, rgba(255, 255, 255, 0.05) 100%);
+            background: linear-gradient(135deg, rgba(56, 189, 248, 0.12) 0%, rgba(255, 255, 255, 0.04) 100%);
             transform: translateY(-1px);
-            box-shadow: 0 8px 24px rgba(56, 189, 248, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+            box-shadow: 0 6px 20px rgba(56, 189, 248, 0.15);
         }
 
         .drag-box:active,
@@ -161,8 +153,8 @@
         .preview-box {
             display: none;
             margin-top: 10px;
-            background: rgba(0, 0, 0, 0.5);
-            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.07);
             border-radius: 8px;
             padding: 8px 10px;
             max-height: 85px;
@@ -191,7 +183,7 @@
             font-weight: 500;
             border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 6px;
-            background: rgba(255, 255, 255, 0.06);
+            background: rgba(255, 255, 255, 0.05);
             color: #e2e8f0;
             cursor: pointer;
             display: flex;
@@ -202,19 +194,19 @@
         }
 
         .btn-glass:hover {
-            background: rgba(255, 255, 255, 0.14);
+            background: rgba(255, 255, 255, 0.12);
             border-color: rgba(255, 255, 255, 0.2);
             color: #ffffff;
         }
 
         .btn-glass.primary {
-            background: rgba(56, 189, 248, 0.15);
+            background: rgba(56, 189, 248, 0.14);
             border-color: rgba(56, 189, 248, 0.35);
             color: #38bdf8;
         }
 
         .btn-glass.primary:hover {
-            background: rgba(56, 189, 248, 0.25);
+            background: rgba(56, 189, 248, 0.24);
             color: #ffffff;
         }
 
@@ -240,11 +232,10 @@
 </head>
 <body>
     <div class="header">
-        <div class="title">
-            <span class="title-dot"></span>
-            Gradstreet Helper
+        <div class="logo-title">
+            <span class="logo-dot"></span>
+            GSAK
         </div>
-        <span class="badge">Glass Theme</span>
     </div>
 
     <!-- SCANNING STATUS -->

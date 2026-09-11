@@ -348,7 +348,7 @@
             <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 8px; cursor: move;" id="gradstreet-widget-header">
                 <div style="display: flex; align-items: center; gap: 6px; font-weight: 600; color: #ffffff; font-size: 13px;">
                     <span style="width: 7px; height: 7px; background: #38bdf8; border-radius: 50%; box-shadow: 0 0 8px #38bdf8;"></span>
-                    Gradstreet Question
+                    GSAK
                 </div>
                 <button id="gradstreet-widget-close" style="background: transparent; border: none; color: #94a3b8; font-size: 14px; cursor: pointer; padding: 2px 6px; border-radius: 4px; transition: all 0.15s;">✕</button>
             </div>
