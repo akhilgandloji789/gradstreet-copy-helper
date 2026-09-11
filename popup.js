@@ -7,6 +7,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const previewBox = document.getElementById("preview-box");
     const actionRow = document.getElementById("action-row");
     const charCount = document.getElementById("char-count");
+    const copyBtn = document.getElementById("copy-btn");
     const pinBtn = document.getElementById("pin-btn");
     const selectBtn = document.getElementById("select-btn");
 
@@ -16,6 +17,7 @@ document.addEventListener("DOMContentLoaded", () => {
         statusText.textContent = text;
         statusText.className = "status-text";
         if (type === "error") statusText.classList.add("error");
+        if (type === "success") statusText.classList.add("success");
         spinner.style.display = showSpin ? "block" : "none";
     }
 
@@ -27,12 +29,12 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function onQuestionExtracted(text) {
-        if (!text || text.length < 10) {
+        if (!text || text.trim().length < 15) {
             showStatus("Question not detected on page", "error", false);
             return;
         }
 
-        questionData = text;
+        questionData = text.trim();
 
         // Reveal UI elements
         statusContainer.style.display = "none";
@@ -44,79 +46,50 @@ document.addEventListener("DOMContentLoaded", () => {
         charCount.textContent = `${questionData.length} chars ready`;
     }
 
-    // Self-contained in-page extractor for direct execution
-    function extractQuestionFromPage() {
-        const NOISE_SELECTORS = [
-            "nav", "header", "footer", ".monaco-editor", ".monaco-diff-editor",
-            "[class*='timer']", "[class*='countdown']", "[class*='navbar']",
-            "[class*='topbar']", "button", "[role='button']", ".btn",
-            "#gradstreet-glass-widget"
-        ];
-
-        const QUESTION_KEYWORDS = [
-            "problem statement", "problem", "description", "input format",
-            "output format", "constraints", "sample input", "sample output",
-            "example", "explanation", "note:", "question"
-        ];
-
-        function cleanClone(el) {
-            const clone = el.cloneNode(true);
-            NOISE_SELECTORS.forEach(s => clone.querySelectorAll(s).forEach(e => e.remove()));
-            clone.querySelectorAll("[hidden], [style*='display: none'], [style*='visibility: hidden']").forEach(e => e.remove());
-            return clone;
-        }
-
-        function formatText(node) {
-            if (!node) return "";
-            let text = "";
-            node.childNodes.forEach(child => {
-                if (child.nodeType === Node.TEXT_NODE) {
-                    text += child.textContent;
-                } else if (child.nodeType === Node.ELEMENT_NODE) {
-                    const tag = child.tagName.toLowerCase();
-                    if (["h1","h2","h3","h4","h5","h6"].includes(tag)) {
-                        text += "\n\n" + formatText(child).trim() + "\n";
-                    } else if (tag === "p") {
-                        text += "\n\n" + formatText(child).trim();
-                    } else if (tag === "pre" || tag === "code") {
-                        text += "\n```\n" + (child.innerText || child.textContent).trim() + "\n```\n";
-                    } else if (tag === "li") {
-                        text += "\n• " + formatText(child).trim();
-                    } else if (tag === "br") {
-                        text += "\n";
-                    } else if (tag === "div" || tag === "section") {
-                        const inner = formatText(child);
-                        if (inner.trim()) text += "\n" + inner;
-                    } else {
-                        text += formatText(child);
-                    }
-                }
-            });
-            return text;
-        }
-
-        function sanitize(raw) {
-            if (!raw) return "";
-            return raw.replace(/\r\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
-        }
-
-        // 1. Check for Monaco split-pane left container
+    // ========================================================
+    // BULLETPROOF IN-PAGE EXTRACTOR (Direct DOM access)
+    // ========================================================
+    function findGradstreetQuestionInDOM() {
         const monaco = document.querySelector(".monaco-editor, [data-keybinding-context], div[class*='monaco']");
+
+        // Strategy 1: Find element containing exact "PROBLEM STATEMENT" text
+        const allElements = Array.from(document.querySelectorAll("h1, h2, h3, h4, h5, h6, div, p, span, section"));
+        const problemHeading = allElements.find(el => {
+            const t = (el.innerText || "").trim().toUpperCase();
+            return t === "PROBLEM STATEMENT" || t.startsWith("PROBLEM STATEMENT");
+        });
+
+        if (problemHeading) {
+            let container = problemHeading.parentElement;
+            while (container && container !== document.body) {
+                const text = container.innerText || "";
+                const lower = text.toLowerCase();
+                const hasEditor = container.querySelector(".monaco-editor, [data-keybinding-context]");
+
+                // Container must hold problem info and NOT contain the code editor
+                if (!hasEditor && text.length > 80 && (lower.includes("input") || lower.includes("example") || lower.includes("output"))) {
+                    // Check if parent also doesn't have the editor (to capture title)
+                    const parent = container.parentElement;
+                    if (parent && parent !== document.body && !parent.querySelector(".monaco-editor") && (parent.innerText || "").length < 15000) {
+                        return parent.innerText.trim();
+                    }
+                    return text.trim();
+                }
+                container = container.parentElement;
+            }
+        }
+
+        // Strategy 2: Left column sibling of Monaco split-pane
         if (monaco) {
             let current = monaco.parentElement;
             while (current && current !== document.body) {
-                const style = window.getComputedStyle(current);
-                const isFlexRow = style.display === "flex" && (style.flexDirection === "row" || !style.flexDirection);
-                const isGrid = style.display === "grid";
-
-                if ((isFlexRow || isGrid) && current.children.length >= 2) {
-                    for (let i = 0; i < current.children.length; i++) {
-                        const col = current.children[i];
-                        if (!col.contains(monaco)) {
-                            const target = col.querySelector(".overflow-y-auto, [class*='overflow']") || col;
-                            const cleaned = cleanClone(target);
-                            const result = sanitize(formatText(cleaned));
-                            if (result.length > 40) return result;
+                const children = Array.from(current.children);
+                if (children.length >= 2) {
+                    const nonEditor = children.find(c => !c.contains(monaco));
+                    if (nonEditor) {
+                        const txt = nonEditor.innerText || "";
+                        if (txt.length > 60 && (txt.toLowerCase().includes("problem") || txt.toLowerCase().includes("example") || txt.toLowerCase().includes("input"))) {
+                            return txt.trim();
                         }
                     }
                 }
@@ -124,41 +97,38 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         }
 
-        // 2. Direct problem container search
-        const candidates = document.querySelectorAll(
-            "div.flex-1.overflow-y-auto, div.overflow-y-auto, div[class*='overflow'], main, article, [data-testid*='problem'], [class*='problem']"
-        );
+        // Strategy 3: Keyword density scoring
+        const keywords = ["problem statement", "input format", "output format", "example 1", "constraints"];
+        let bestEl = null;
+        let maxMatches = 0;
 
-        let bestText = null;
-        let bestScore = -1;
-
-        candidates.forEach(el => {
+        document.querySelectorAll("div, section, article, main").forEach(el => {
             if (el.querySelector(".monaco-editor")) return;
             if (el.closest("nav, header, footer")) return;
 
-            const raw = (el.innerText || "").trim();
-            if (raw.length < 50 || raw.length > 20000) return;
+            const text = el.innerText || "";
+            if (text.length < 50 || text.length > 15000) return;
 
-            const lower = raw.toLowerCase();
-            let score = 0;
-            QUESTION_KEYWORDS.forEach(kw => {
-                if (lower.includes(kw)) score += 10;
+            const lower = text.toLowerCase();
+            let matches = 0;
+            keywords.forEach(kw => {
+                if (lower.includes(kw)) matches++;
             });
 
-            if (score > bestScore) {
-                bestScore = score;
-                const cleaned = cleanClone(el);
-                bestText = sanitize(formatText(cleaned));
+            if (matches > maxMatches) {
+                maxMatches = matches;
+                bestEl = el;
             }
         });
 
-        if (bestText && bestText.length > 40) return bestText;
+        if (bestEl && maxMatches >= 1) {
+            return bestEl.innerText.trim();
+        }
 
-        // 3. Fallback to main or body
-        const main = document.querySelector("main") || document.body;
-        if (main) {
-            const cleaned = cleanClone(main);
-            return sanitize(formatText(cleaned));
+        // Strategy 4: MCQ / Quiz Card
+        const mcq = document.querySelector("[class*='question-card'], [class*='QuestionCard'], [class*='question-container'], .card");
+        if (mcq && (mcq.innerText || "").length > 30) {
+            return mcq.innerText.trim();
         }
 
         return null;
@@ -176,37 +146,27 @@ document.addEventListener("DOMContentLoaded", () => {
                 return;
             }
 
-            if (!tab.url || !tab.url.includes("gradstreet.instacks.co")) {
-                showStatus("Open a Gradstreet test tab", "error", false);
-                return;
-            }
+            // Immediately execute in page context via chrome.scripting
+            // This works 100% reliably without waiting or needing tab refresh!
+            const results = await chrome.scripting.executeScript({
+                target: { tabId: tab.id },
+                func: findGradstreetQuestionInDOM
+            });
 
-            // Attempt 1: Try messaging content script
-            chrome.tabs.sendMessage(tab.id, { action: "GET_QUESTION" }, async (response) => {
-                if (!chrome.runtime.lastError && response && response.success && response.text) {
-                    onQuestionExtracted(response.text);
-                    return;
-                }
-
-                // Attempt 2: Content script wasn't ready in tab!
-                // Directly execute extraction via chrome.scripting without requiring tab refresh!
-                try {
-                    const results = await chrome.scripting.executeScript({
-                        target: { tabId: tab.id },
-                        func: extractQuestionFromPage
-                    });
-
-                    if (results && results[0] && results[0].result) {
-                        onQuestionExtracted(results[0].result);
+            if (results && results[0] && results[0].result) {
+                onQuestionExtracted(results[0].result);
+            } else {
+                // Fallback: try asking content script
+                chrome.tabs.sendMessage(tab.id, { action: "GET_QUESTION" }, (response) => {
+                    if (response && response.success && response.text) {
+                        onQuestionExtracted(response.text);
                     } else {
                         showStatus("Question not detected on page", "error", false);
                     }
-                } catch (scriptErr) {
-                    console.error("Direct execution failed:", scriptErr);
-                    showStatus("Please refresh the test page once", "error", false);
-                }
-            });
+                });
+            }
         } catch (err) {
+            console.error("Extraction error:", err);
             showStatus("Scan error: " + err.message, "error", false);
         }
     }
@@ -238,18 +198,32 @@ document.addEventListener("DOMContentLoaded", () => {
                 window.close();
             }, 600);
         } else {
-            dragSub.textContent = "Grab & drop into ChatGPT, Notepad, VS Code...";
+            dragSub.textContent = "Drop into ChatGPT, Notepad, VS Code...";
         }
     });
 
-    // Select all text in preview box
+    // Copy button (runs inside popup context - 100% safe, never prompts site)
+    copyBtn.addEventListener("click", async () => {
+        if (!questionData) return;
+        try {
+            await navigator.clipboard.writeText(questionData);
+            copyBtn.innerHTML = "<span>✅</span> Copied!";
+            setTimeout(() => {
+                copyBtn.innerHTML = "<span>📋</span> Copy Text";
+            }, 1500);
+        } catch (e) {
+            console.error("Clipboard copy failed:", e);
+        }
+    });
+
+    // Select all text in preview
     selectBtn.addEventListener("click", () => {
         const range = document.createRange();
         range.selectNodeContents(previewBox);
         const sel = window.getSelection();
         sel.removeAllRanges();
         sel.addRange(range);
-        dragSub.textContent = "Text selected! Drag highlighted text anywhere.";
+        dragSub.textContent = "Text highlighted! Drag it anywhere.";
     });
 
     // Pin to page button
@@ -259,76 +233,96 @@ document.addEventListener("DOMContentLoaded", () => {
             const tab = tabs[0];
             if (!tab || !tab.id) return;
 
-            // Try sending message first
-            chrome.tabs.sendMessage(tab.id, { action: "PIN_QUESTION", text: questionData }, async (resp) => {
-                if (chrome.runtime.lastError || !resp) {
-                    // Inject and pin directly
-                    await chrome.scripting.executeScript({
-                        target: { tabId: tab.id },
-                        func: (text) => {
-                            const existing = document.getElementById("gradstreet-glass-widget");
-                            if (existing) existing.remove();
+            await chrome.scripting.executeScript({
+                target: { tabId: tab.id },
+                func: (text) => {
+                    const existing = document.getElementById("gradstreet-glass-widget");
+                    if (existing) existing.remove();
 
-                            const widget = document.createElement("div");
-                            widget.id = "gradstreet-glass-widget";
-                            Object.assign(widget.style, {
-                                position: "fixed",
-                                bottom: "24px",
-                                right: "24px",
-                                width: "320px",
-                                background: "rgba(10, 12, 18, 0.88)",
-                                backdropFilter: "blur(24px) saturate(190%)",
-                                webkitBackdropFilter: "blur(24px) saturate(190%)",
-                                border: "1px solid rgba(255, 255, 255, 0.15)",
-                                borderRadius: "12px",
-                                boxShadow: "0 20px 48px rgba(0, 0, 0, 0.7)",
-                                color: "#f8fafc",
-                                zIndex: "2147483647",
-                                padding: "14px",
-                                fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-                                fontSize: "12px",
-                                display: "flex",
-                                flexDirection: "column",
-                                gap: "10px"
-                            });
-
-                            widget.innerHTML = `
-                                <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 8px;">
-                                    <div style="display: flex; align-items: center; gap: 6px; font-weight: 600; color: #ffffff;">
-                                        <span style="width: 7px; height: 7px; background: #38bdf8; border-radius: 50%;"></span>
-                                        Gradstreet Question
-                                    </div>
-                                    <button id="gw-close" style="background: transparent; border: none; color: #94a3b8; font-size: 14px; cursor: pointer;">✕</button>
-                                </div>
-                                <div id="gw-drag" draggable="true" style="padding: 12px; background: rgba(255,255,255,0.05); border: 1.5px dashed #38bdf8; border-radius: 8px; cursor: grab; text-align: center;">
-                                    <div style="color: #fff; font-weight: 600;">⠿ Drag Question to Any App</div>
-                                    <div style="color: #94a3b8; font-size: 10px;">Drop into ChatGPT, Notepad, VS Code...</div>
-                                </div>
-                                <div style="max-height: 90px; overflow-y: auto; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; padding: 8px; font-size: 11px; color: #cbd5e1; white-space: pre-wrap;" id="gw-text"></div>
-                            `;
-
-                            document.body.appendChild(widget);
-                            widget.querySelector("#gw-text").textContent = text;
-                            widget.querySelector("#gw-close").onclick = () => widget.remove();
-
-                            const dragEl = widget.querySelector("#gw-drag");
-                            dragEl.ondragstart = (e) => {
-                                e.dataTransfer.setData("text/plain", text);
-                                e.dataTransfer.setData("Text", text);
-                                e.dataTransfer.effectAllowed = "copyMove";
-                            };
-                            dragEl.ondragend = (e) => {
-                                if (e.dataTransfer.dropEffect && e.dataTransfer.dropEffect !== "none") {
-                                    setTimeout(() => widget.remove(), 800);
-                                }
-                            };
-                        },
-                        args: [questionData]
+                    const widget = document.createElement("div");
+                    widget.id = "gradstreet-glass-widget";
+                    Object.assign(widget.style, {
+                        position: "fixed",
+                        bottom: "24px",
+                        right: "24px",
+                        width: "330px",
+                        background: "rgba(10, 12, 18, 0.90)",
+                        backdropFilter: "blur(28px) saturate(200%)",
+                        webkitBackdropFilter: "blur(28px) saturate(200%)",
+                        border: "1px solid rgba(255, 255, 255, 0.16)",
+                        borderRadius: "14px",
+                        boxShadow: "0 24px 60px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.15)",
+                        color: "#f8fafc",
+                        zIndex: "2147483647",
+                        padding: "14px",
+                        fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+                        fontSize: "12px",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "10px"
                     });
-                }
-                pinBtn.textContent = "✅ Pinned!";
-                setTimeout(() => window.close(), 500);
+
+                    widget.innerHTML = `
+                        <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 8px; cursor: move;" id="gw-head">
+                            <div style="display: flex; align-items: center; gap: 6px; font-weight: 600; color: #ffffff;">
+                                <span style="width: 7px; height: 7px; background: #38bdf8; border-radius: 50%; box-shadow: 0 0 8px #38bdf8;"></span>
+                                Gradstreet Question
+                            </div>
+                            <button id="gw-close" style="background: transparent; border: none; color: #94a3b8; font-size: 14px; cursor: pointer; padding: 2px 6px;">✕</button>
+                        </div>
+                        <div id="gw-drag" draggable="true" style="padding: 14px 10px; background: linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 100%); border: 1.5px dashed rgba(56, 189, 248, 0.6); border-radius: 8px; cursor: grab; text-align: center; user-select: none;">
+                            <div style="color: #fff; font-weight: 600; font-size: 13px;">⠿ Drag Question to Any App</div>
+                            <div style="color: #94a3b8; font-size: 10px; margin-top: 2px;">Drop into ChatGPT, Notepad, VS Code...</div>
+                        </div>
+                        <div style="max-height: 100px; overflow-y: auto; background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; padding: 8px 10px; font-size: 11px; color: #cbd5e1; white-space: pre-wrap; user-select: text;" id="gw-text"></div>
+                    `;
+
+                    document.body.appendChild(widget);
+                    widget.querySelector("#gw-text").textContent = text;
+                    widget.querySelector("#gw-close").onclick = () => widget.remove();
+
+                    const dragEl = widget.querySelector("#gw-drag");
+                    dragEl.ondragstart = (e) => {
+                        e.dataTransfer.setData("text/plain", text);
+                        e.dataTransfer.setData("Text", text);
+                        e.dataTransfer.setData("text/html", `<pre style="white-space: pre-wrap;">${text}</pre>`);
+                        e.dataTransfer.effectAllowed = "copyMove";
+                        dragEl.style.opacity = "0.5";
+                    };
+                    dragEl.ondragend = (e) => {
+                        dragEl.style.opacity = "1";
+                        if (e.dataTransfer.dropEffect && e.dataTransfer.dropEffect !== "none") {
+                            setTimeout(() => widget.remove(), 800);
+                        }
+                    };
+
+                    // Movable on screen
+                    const head = widget.querySelector("#gw-head");
+                    let isMove = false, sx = 0, sy = 0, ix = 0, iy = 0;
+                    head.onmousedown = (e) => {
+                        if (e.target.id === "gw-close") return;
+                        isMove = true; sx = e.clientX; sy = e.clientY;
+                        const r = widget.getBoundingClientRect();
+                        ix = r.left; iy = r.top;
+                        window.onmousemove = (me) => {
+                            if (!isMove) return;
+                            widget.style.left = (ix + me.clientX - sx) + "px";
+                            widget.style.top = (iy + me.clientY - sy) + "px";
+                            widget.style.right = "auto";
+                            widget.style.bottom = "auto";
+                        };
+                        window.onmouseup = () => {
+                            isMove = false;
+                            window.onmousemove = null;
+                            window.onmouseup = null;
+                        };
+                    };
+                },
+                args: [questionData]
             });
+
+            pinBtn.innerHTML = "<span>✅</span> Pinned!";
+            setTimeout(() => window.close(), 400);
         } catch (e) {
             console.error("Pin error:", e);
         }

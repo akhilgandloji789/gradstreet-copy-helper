@@ -237,6 +237,31 @@
     }
 
     function extractQuestionText() {
+        // Strategy 0: Direct search for PROBLEM STATEMENT header
+        const allElements = Array.from(document.querySelectorAll("h1, h2, h3, h4, h5, h6, div, p, span, section"));
+        const problemHeading = allElements.find(el => {
+            const t = (el.innerText || "").trim().toUpperCase();
+            return t === "PROBLEM STATEMENT" || t.startsWith("PROBLEM STATEMENT");
+        });
+
+        if (problemHeading) {
+            let container = problemHeading.parentElement;
+            while (container && container !== document.body) {
+                const text = container.innerText || "";
+                const lower = text.toLowerCase();
+                const hasEditor = container.querySelector(".monaco-editor, [data-keybinding-context]");
+
+                if (!hasEditor && text.length > 80 && (lower.includes("input") || lower.includes("example") || lower.includes("output"))) {
+                    const parent = container.parentElement;
+                    if (parent && parent !== document.body && !parent.querySelector(".monaco-editor") && (parent.innerText || "").length < 15000) {
+                        return parent.innerText.trim();
+                    }
+                    return text.trim();
+                }
+                container = container.parentElement;
+            }
+        }
+
         const coding = extractCodingProblem();
         if (coding && coding.length > 40) return coding;
 
