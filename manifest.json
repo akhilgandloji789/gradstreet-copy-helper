@@ -4,7 +4,8 @@
   "version": "2.3.0",
   "description": "Extract Gradstreet assessment questions with drag-and-drop and paste code directly into the Monaco editor.",
   "permissions": [
-    "activeTab"
+    "activeTab",
+    "scripting"
   ],
   "host_permissions": [
     "https://gradstreet.instacks.co/*"
