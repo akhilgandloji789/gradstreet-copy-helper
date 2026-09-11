@@ -1,6 +1,6 @@
 # Gradstreet Copy Helper
 
-A lightweight, proctor-safe Chrome extension designed specifically for Gradstreet assessment tests. It enables one-click question copying across coding challenges and MCQ assessments, and allows code to be inserted directly into the Gradstreet Monaco code editor.
+A lightweight, proctor-safe Chrome extension designed specifically for Gradstreet assessment tests. It enables one-click question copying across coding challenges and MCQ assessments, and allows code to be inserted directly into the Gradstreet Monaco code editor via `Ctrl+V` (or `Cmd+V`).
 
 ---
 
@@ -11,7 +11,7 @@ A lightweight, proctor-safe Chrome extension designed specifically for Gradstree
 - **Universal Assessment Detection**: Intelligently extracts questions across various assessment formats on Gradstreet:
   - **Coding Challenges**: Extracts problem title, problem statement, input/output formats, constraints, and sample test cases (excluding the code editor).
   - **MCQ / Aptitude Questions**: Extracts the question stem, code blocks, and all available choices (A, B, C, D).
-- **Direct Monaco Editor Integration**: Enables `Ctrl+V` (Windows/Linux) and `Cmd+V` (macOS) to reliably insert code directly into the Gradstreet Monaco code editor using its native API.
+- **Direct Monaco Editor Integration (Ctrl+V / Cmd+V)**: Injects directly into the page's MAIN execution world, bypassing CSP and capturing native paste events to insert code directly into the Monaco editor via its native API.
 - **Stealth Keyboard Shortcut**: Supports `Alt+C` (or `Option+C` on macOS) to instantly copy questions without touching the mouse.
 - **Target Platform**: Specifically scoped to `https://gradstreet.instacks.co/*`.
 
@@ -27,33 +27,33 @@ Modern web assessment platforms like Gradstreet render code editors using Micros
                         ▼
          ┌─────────────────────────────┐
          │         content.js          │ ◄──── Alt+C (Instant Copy)
-         │  • Universal DOM Extractor  │ ◄──── Ctrl+V / Cmd+V
+         │  • Universal DOM Extractor  │
          │  • Clean Text Formatter     │
          └──────────────┬──────────────┘
                         │
             ┌───────────┴───────────┐
             ▼                       ▼
-    [Click Extension]       [Window Message]
-   ┌─────────────────┐             │
-   │    popup.js     │             ▼
-   │ • Extracts      │      ┌─────────────┐
-   │ • Copies to     │      │   page.js   │ (Runs in page context)
-   │   clipboard     │      └──────┬──────┘
-   │ • Auto-closes   │             │
-   └─────────────────┘             ▼
-                          Monaco Editor API
-                    monaco.editor.getEditors()[0]
-                                   │
-                                   ▼
-                         editor.setValue(code)
-                                   │
-                                   ▼
-                         Code inserted & focused
+    [Click Extension]         [Ctrl+V / Cmd+V]
+   ┌─────────────────┐              │
+   │    popup.js     │              ▼
+   │ • Extracts      │       ┌─────────────┐
+   │ • Copies to     │       │   page.js   │ (Runs in MAIN world, all frames)
+   │   clipboard     │       └──────┬──────┘
+   │ • Auto-closes   │              │
+   └─────────────────┘              ▼
+                           Monaco Editor API
+                     monaco.editor.getEditors()[0]
+                                    │
+                                    ▼
+                          editor.executeEdits()
+                                    │
+                                    ▼
+                          Code inserted & focused
 ```
 
-1. **`popup.html` / `popup.js`**: When clicked from the browser toolbar, it requests the question content from the active tab. It writes the text to the clipboard from the extension's privileged context (ensuring reliable clipboard writes without triggering page-level clipboard inspection) and closes itself automatically.
+1. **`popup.html` / `popup.js`**: When clicked from the browser toolbar, it requests the question content from the active tab. It writes the text to the clipboard from the extension's privileged context and closes itself automatically in 800ms. Has a simple "Re-Copy Question" button.
 2. **`content.js`**: Runs in an isolated content script environment on Gradstreet pages. It employs a multi-tier heuristic extraction engine (identifying split-pane coding panels, MCQ cards, and scrollable content blocks while ignoring navigation bars, timers, and action buttons).
-3. **`page.js`**: Injected directly into the actual Gradstreet page context where the global `monaco` object lives. When a paste message is received, it accesses `monaco.editor.getEditors()`, prioritizes the focused editor, replaces the content via `editor.setValue()`, and sets focus.
+3. **`page.js`**: Runs natively in the page's `MAIN` execution world across all frames. It intercepts native `paste` and window message events, unlocks read-only editor states, and applies `executeEdits` / `setValue` directly to the Monaco editor.
 
 ---
 
@@ -108,28 +108,7 @@ Because this extension is open-source and intended for direct personal use, it i
 
 ---
 
-## Privacy & Security
-
-- **100% Local Execution**: All operations (DOM parsing, clipboard read/write, Monaco bridging) execute locally within your browser.
-- **Zero External Requests**: The extension contains no analytics, telemetry, trackers, or remote server connections.
-- **No Background Polling**: Question parsing is strictly on-demand.
-
----
-
-## Compatibility
-
-- **Browsers**: Google Chrome, Brave, Microsoft Edge, Opera, or any Chromium-based browser with Manifest V3 support.
-- **Operating Systems**: Windows, macOS, Linux, ChromeOS.
-- **Shortcuts**:
-  - `Ctrl + V` (Windows / Linux)
-  - `Cmd + V` (macOS)
-  - `Alt + C` / `Option + C` (Instant Copy)
-
----
-
 ## Troubleshooting
 
-- **Extension icon says "Not Gradstreet"**: Ensure your active tab URL begins with `https://gradstreet.instacks.co/`.
-- **Question not copying**: If an assessment question is still loading or transitions between sections, wait for the question text to appear and click the extension icon again.
-- **Code not inserting on paste**: Click inside the Monaco editor box once to focus it, then press `Ctrl+V` (or `Cmd+V`). You can also click the extension icon and press the **Paste Code** button.
-- **Updating the extension**: After pulling updates from GitHub, go to `chrome://extensions` and click the **Reload** (circular arrow) icon on the Gradstreet Copy Helper card.
+- **Updating the extension**: After any update, go to `chrome://extensions` and click the **Reload** (circular arrow) icon on the Gradstreet Copy Helper card, then refresh the Gradstreet tab.
+- **Code not inserting on Ctrl+V**: Click inside the Monaco editor box once to focus it, then press `Ctrl+V` (or `Cmd+V`). Ensure you have reloaded the Gradstreet page after updating the extension in Chrome.

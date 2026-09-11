@@ -1,10 +1,9 @@
 document.addEventListener("DOMContentLoaded", () => {
-    const statusBox = document.getElementById("status-box");
     const statusText = document.getElementById("status-text");
     const subText = document.getElementById("sub-text");
     const spinner = document.getElementById("spinner");
-    const copyBtn = document.getElementById("copy-btn");
-    const pasteBtn = document.getElementById("paste-btn");
+    const statusIcon = document.getElementById("status-icon");
+    const recopyBtn = document.getElementById("recopy-btn");
 
     let closeTimer = null;
     let cancelAutoClose = false;
@@ -15,10 +14,22 @@ document.addEventListener("DOMContentLoaded", () => {
         if (closeTimer) clearTimeout(closeTimer);
     });
 
-    function setStatus(title, sub, type = "normal", showSpinner = false) {
+    function setStatus(title, sub, icon = "", type = "normal", showSpinner = false) {
         statusText.textContent = title;
         subText.textContent = sub || "";
-        spinner.style.display = showSpinner ? "block" : "none";
+
+        if (showSpinner) {
+            spinner.style.display = "block";
+            statusIcon.style.display = "none";
+        } else {
+            spinner.style.display = "none";
+            if (icon) {
+                statusIcon.textContent = icon;
+                statusIcon.style.display = "block";
+            } else {
+                statusIcon.style.display = "none";
+            }
+        }
 
         statusText.className = "status-text";
         if (type === "success") statusText.classList.add("success");
@@ -26,32 +37,32 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     async function triggerCopy(autoDismiss = true) {
-        setStatus("Extracting question...", "Scanning DOM structure", "normal", true);
+        setStatus("Scanning question...", "Reading assessment DOM", "📋", "normal", true);
 
         try {
             const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
             const tab = tabs[0];
 
             if (!tab || !tab.id) {
-                setStatus("No active tab found", "Please retry", "error", false);
+                setStatus("No active tab found", "Please retry", "❌", "error", false);
                 return;
             }
 
             if (!tab.url || !tab.url.includes("gradstreet.instacks.co")) {
-                setStatus("Not Gradstreet", "Navigate to an assessment test", "error", false);
+                setStatus("Not Gradstreet", "Navigate to an assessment test", "⚠️", "error", false);
                 return;
             }
 
             chrome.tabs.sendMessage(tab.id, { action: "GET_QUESTION" }, async (response) => {
                 if (chrome.runtime.lastError || !response) {
-                    setStatus("Unable to reach page", "Try refreshing the test tab", "error", false);
+                    setStatus("Unable to reach page", "Try refreshing the test tab", "❌", "error", false);
                     return;
                 }
 
                 if (response.success && response.text) {
                     try {
                         await navigator.clipboard.writeText(response.text);
-                        setStatus("✅ Question Copied!", `${response.length} characters copied`, "success", false);
+                        setStatus("✅ Question Copied!", `${response.length} characters copied`, "✅", "success", false);
 
                         if (autoDismiss && !cancelAutoClose) {
                             closeTimer = setTimeout(() => {
@@ -59,60 +70,22 @@ document.addEventListener("DOMContentLoaded", () => {
                             }, 800);
                         }
                     } catch (err) {
-                        setStatus("Clipboard error", "Permissions required", "error", false);
+                        setStatus("Clipboard error", "Permissions required", "❌", "error", false);
                     }
                 } else {
-                    setStatus("Question not found", response.error || "No question detected", "error", false);
+                    setStatus("Question not detected", response.error || "No question found", "❌", "error", false);
                 }
             });
         } catch (err) {
-            setStatus("Detection error", err.message, "error", false);
+            setStatus("Detection error", err.message, "❌", "error", false);
         }
     }
 
-    async function triggerPaste() {
-        cancelAutoClose = true;
-        if (closeTimer) clearTimeout(closeTimer);
-
-        setStatus("Reading clipboard...", "Preparing to insert", "normal", true);
-
-        try {
-            const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-            const tab = tabs[0];
-
-            if (!tab || !tab.id) {
-                setStatus("No active tab found", "", "error", false);
-                return;
-            }
-
-            const clipboardText = await navigator.clipboard.readText();
-            if (!clipboardText) {
-                setStatus("Clipboard empty", "Copy your code first", "error", false);
-                return;
-            }
-
-            chrome.tabs.sendMessage(tab.id, { action: "PASTE_CODE", code: clipboardText }, (response) => {
-                if (chrome.runtime.lastError) {
-                    setStatus("Paste failed", "Could not reach editor", "error", false);
-                } else {
-                    setStatus("✅ Inserted into Editor!", "Code sent to Monaco", "success", false);
-                    setTimeout(() => window.close(), 1000);
-                }
-            });
-        } catch (err) {
-            setStatus("Paste error", err.message, "error", false);
-        }
-    }
-
-    copyBtn.addEventListener("click", () => {
+    recopyBtn.addEventListener("click", () => {
         cancelAutoClose = true;
         triggerCopy(false);
     });
 
-    pasteBtn.addEventListener("click", () => {
-        triggerPaste();
-    });
-
-    // Auto-execute copy on popup open
+    // Automatically copy on popup click/open
     triggerCopy(true);
 });

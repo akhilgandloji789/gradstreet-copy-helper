@@ -2,24 +2,9 @@
     "use strict";
 
     // ==========================================
-    // 1. INJECT PAGE SCRIPT (MONACO BRIDGE)
-    // ==========================================
-    try {
-        const script = document.createElement("script");
-        script.src = chrome.runtime.getURL("page.js");
-        script.onload = () => script.remove();
-        (document.head || document.documentElement).appendChild(script);
-    } catch (e) {
-        console.warn("[Gradstreet Helper] Monaco bridge injection warning:", e);
-    }
-
-    // ==========================================
-    // 2. UNIVERSAL QUESTION EXTRACTION ENGINE
+    // 1. UNIVERSAL QUESTION EXTRACTION ENGINE
     // ==========================================
 
-    /**
-     * Noise selectors that should be excluded from extracted text
-     */
     const NOISE_SELECTORS = [
         "nav",
         "header",
@@ -36,9 +21,6 @@
         ".btn"
     ];
 
-    /**
-     * Keywords that strongly indicate question or problem description content
-     */
     const QUESTION_KEYWORDS = [
         "problem",
         "description",
@@ -53,27 +35,18 @@
         "question"
     ];
 
-    /**
-     * Cleans an element clone by removing buttons, timers, editors, and UI noise.
-     */
     function cleanClone(element) {
         const clone = element.cloneNode(true);
 
-        // Remove noise selectors
         NOISE_SELECTORS.forEach(selector => {
             clone.querySelectorAll(selector).forEach(el => el.remove());
         });
 
-        // Remove hidden elements
         clone.querySelectorAll("[hidden], [style*='display: none'], [style*='visibility: hidden']").forEach(el => el.remove());
 
         return clone;
     }
 
-    /**
-     * Converts a DOM node into cleanly formatted text, preserving paragraphs,
-     * code blocks, lists, and options.
-     */
     function formatNodeText(node) {
         if (!node) return "";
 
@@ -113,9 +86,6 @@
         return text;
     }
 
-    /**
-     * Normalize formatted text (remove excessive newlines and trim).
-     */
     function sanitizeText(raw) {
         if (!raw) return "";
         return raw
@@ -124,15 +94,10 @@
             .trim();
     }
 
-    /**
-     * Strategy 1: Detect Split-Pane Coding Assessment Layout.
-     * Looks for Monaco editor and extracts the problem description pane to its left.
-     */
     function extractCodingProblem() {
         const monaco = document.querySelector(".monaco-editor, [data-keybinding-context], div[class*='monaco']");
 
         if (monaco) {
-            // Traverse up to find split container
             let current = monaco.parentElement;
             let splitContainer = null;
 
@@ -149,11 +114,9 @@
             }
 
             if (splitContainer) {
-                // Find sibling column that does not contain Monaco
                 for (let i = 0; i < splitContainer.children.length; i++) {
                     const col = splitContainer.children[i];
                     if (!col.contains(monaco)) {
-                        // This is the problem description panel
                         const target = col.querySelector(".overflow-y-auto, [class*='overflow']") || col;
                         const cleaned = cleanClone(target);
                         const result = sanitizeText(formatNodeText(cleaned));
@@ -165,7 +128,6 @@
             }
         }
 
-        // Direct container matches for Gradstreet coding panels
         const codingSelectors = [
             "div.flex-1.overflow-y-auto.no-scrollbar.p-6.space-y-6",
             "div.flex-1.overflow-y-auto",
@@ -195,10 +157,6 @@
         return null;
     }
 
-    /**
-     * Strategy 2: Detect MCQ / Quiz Assessment Layout.
-     * Extracts question prompt + all options (A, B, C, D).
-     */
     function extractMcqQuestion() {
         const mcqSelectors = [
             "[class*='question-card']",
@@ -220,13 +178,11 @@
             }
         }
 
-        // Search for question stems and options
         const optionElements = document.querySelectorAll(
             "[class*='option'], [class*='choice'], [role='radio'], input[type='radio']"
         );
 
         if (optionElements.length > 0) {
-            // Find parent common ancestor holding the question and options
             const firstOption = optionElements[0];
             let ancestor = firstOption.parentElement;
 
@@ -246,10 +202,6 @@
         return null;
     }
 
-    /**
-     * Strategy 3: Heuristic Scorer for Any Assessment View.
-     * Evaluates scrollable containers and picks the highest scoring content block.
-     */
     function extractHeuristicContent() {
         const candidates = document.querySelectorAll(
             "main, article, [role='main'], div.overflow-y-auto, div[class*='scroll']"
@@ -272,7 +224,6 @@
                 if (lower.includes(kw)) score += 10;
             });
 
-            // Length score bonus
             if (text.length > 100 && text.length < 4000) score += 5;
 
             if (score > bestScore) {
@@ -285,23 +236,16 @@
         return bestText;
     }
 
-    /**
-     * Master extraction function combining all strategies.
-     */
     function extractQuestionText() {
-        // Try coding assessment
         const coding = extractCodingProblem();
         if (coding && coding.length > 40) return coding;
 
-        // Try MCQ / quiz assessment
         const mcq = extractMcqQuestion();
         if (mcq && mcq.length > 30) return mcq;
 
-        // Try heuristic fallback
         const heuristic = extractHeuristicContent();
         if (heuristic && heuristic.length > 40) return heuristic;
 
-        // Ultimate fallback: look for largest visible text section excluding editor
         const main = document.querySelector("main") || document.body;
         if (main) {
             const cleaned = cleanClone(main);
@@ -313,67 +257,17 @@
     }
 
     // ==========================================
-    // 3. TRANSIENT STEALTH NOTIFICATION (OPTIONAL)
-    // ==========================================
-    function showTransientNotification(message, isError = false) {
-        const existing = document.getElementById("gradstreet-helper-toast");
-        if (existing) existing.remove();
-
-        const toast = document.createElement("div");
-        toast.id = "gradstreet-helper-toast";
-        toast.textContent = message;
-
-        Object.assign(toast.style, {
-            position: "fixed",
-            bottom: "24px",
-            right: "24px",
-            zIndex: "2147483647",
-            padding: "8px 14px",
-            borderRadius: "6px",
-            background: isError ? "#ef4444" : "#10b981",
-            color: "#ffffff",
-            fontSize: "13px",
-            fontWeight: "500",
-            boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-            pointerEvents: "none",
-            opacity: "0",
-            transition: "opacity 0.2s ease, transform 0.2s ease",
-            transform: "translateY(8px)",
-            fontFamily: "system-ui, -apple-system, sans-serif"
-        });
-
-        document.body.appendChild(toast);
-
-        requestAnimationFrame(() => {
-            toast.style.opacity = "1";
-            toast.style.transform = "translateY(0)";
-        });
-
-        setTimeout(() => {
-            toast.style.opacity = "0";
-            toast.style.transform = "translateY(8px)";
-            setTimeout(() => toast.remove(), 250);
-        }, 1200);
-    }
-
-    // ==========================================
-    // 4. CHROME RUNTIME MESSAGING (POPUP / SHORTCUT)
+    // 2. RUNTIME MESSAGING (POPUP)
     // ==========================================
     chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         if (request.action === "GET_QUESTION" || request.action === "COPY_QUESTION") {
             const questionText = extractQuestionText();
 
             if (questionText) {
-                // If requested directly from content script, copy to clipboard
-                navigator.clipboard.writeText(questionText).catch(() => {
-                    // Fallback handled by caller if needed
-                });
-
                 sendResponse({
                     success: true,
                     text: questionText,
-                    length: questionText.length,
-                    preview: questionText.slice(0, 120).trim() + "..."
+                    length: questionText.length
                 });
             } else {
                 sendResponse({
@@ -383,89 +277,53 @@
             }
             return true;
         }
-
-        if (request.action === "PASTE_CODE") {
-            window.postMessage({
-                type: "GRADSTREET_PASTE",
-                text: request.code || ""
-            }, "*");
-
-            sendResponse({ success: true });
-            return true;
-        }
     });
 
     // ==========================================
-    // 5. IN-PAGE KEYBOARD SHORTCUTS
+    // 3. KEYBOARD SHORTCUTS & MONACO PASTE
     // ==========================================
 
-    // Alt + C (or Option + C): Stealth instant copy
+    // Alt + C: Stealth instant copy from page
     document.addEventListener("keydown", async (event) => {
         if (event.altKey && event.key.toLowerCase() === "c") {
-            event.preventDefault();
-            event.stopImmediatePropagation();
-
             const questionText = extractQuestionText();
             if (questionText) {
                 try {
                     await navigator.clipboard.writeText(questionText);
-                    showTransientNotification("Question Copied!");
                 } catch (e) {
                     console.error("[Gradstreet Helper] Clipboard write error:", e);
                 }
-            } else {
-                showTransientNotification("Question not detected", true);
             }
         }
     }, true);
 
-    // Ctrl + V / Cmd + V: Insert code into Monaco editor
+    // Ctrl + V / Cmd + V: Monaco Paste Backup
     document.addEventListener("keydown", async (event) => {
         if (
             (event.ctrlKey || event.metaKey) &&
             event.key.toLowerCase() === "v"
         ) {
-            // If user is focused inside a standard text input/textarea that is not Monaco, let default paste happen
-            const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : "";
-            const isInsideMonaco = document.activeElement && (
-                document.activeElement.closest(".monaco-editor") ||
-                document.activeElement.classList.contains("inputarea")
+            const active = document.activeElement;
+            const isRegularInput = active && (
+                active.tagName === "INPUT" ||
+                (active.tagName === "TEXTAREA" && !active.classList.contains("inputarea") && !active.closest(".monaco-editor"))
             );
 
-            if (!isInsideMonaco && (activeTag === "input" || activeTag === "textarea")) {
-                return;
-            }
-
-            event.preventDefault();
-            event.stopImmediatePropagation();
+            // If user is inside a regular form input outside Monaco, do not intercept
+            if (isRegularInput) return;
 
             try {
                 const text = await navigator.clipboard.readText();
-                if (!text) return;
-
-                window.postMessage({
-                    type: "GRADSTREET_PASTE",
-                    text: text
-                }, "*");
-            } catch (error) {
-                console.error("[Gradstreet Helper] Clipboard read failed:", error);
+                if (text) {
+                    window.postMessage({
+                        type: "GRADSTREET_PASTE",
+                        text: text
+                    }, "*");
+                }
+            } catch (e) {
+                // If readText fails, the native paste event listener in page.js will capture clipboardData
             }
         }
     }, true);
-
-    // ==========================================
-    // 6. RESULT FROM MONACO EDITOR
-    // ==========================================
-    window.addEventListener("message", (event) => {
-        if (event.source !== window) return;
-
-        if (event.data && event.data.type === "GRADSTREET_PASTE_RESULT") {
-            if (event.data.success) {
-                showTransientNotification("Code inserted into editor");
-            } else {
-                console.warn("[Gradstreet Helper] Monaco insertion:", event.data.error);
-            }
-        }
-    });
 
 })();
