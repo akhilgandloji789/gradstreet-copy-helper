@@ -1,91 +1,88 @@
 document.addEventListener("DOMContentLoaded", () => {
+    const statusContainer = document.getElementById("status-container");
     const statusText = document.getElementById("status-text");
-    const subText = document.getElementById("sub-text");
     const spinner = document.getElementById("spinner");
-    const statusIcon = document.getElementById("status-icon");
-    const recopyBtn = document.getElementById("recopy-btn");
+    const dragBox = document.getElementById("drag-box");
+    const dragSub = document.getElementById("drag-sub");
+    const charCount = document.getElementById("char-count");
 
-    let closeTimer = null;
-    let cancelAutoClose = false;
+    let questionData = "";
 
-    // Prevent auto-close if user hovers or interacts with the popup
-    document.body.addEventListener("mouseenter", () => {
-        cancelAutoClose = true;
-        if (closeTimer) clearTimeout(closeTimer);
-    });
-
-    function setStatus(title, sub, icon = "", type = "normal", showSpinner = false) {
-        statusText.textContent = title;
-        subText.textContent = sub || "";
-
-        if (showSpinner) {
-            spinner.style.display = "block";
-            statusIcon.style.display = "none";
-        } else {
-            spinner.style.display = "none";
-            if (icon) {
-                statusIcon.textContent = icon;
-                statusIcon.style.display = "block";
-            } else {
-                statusIcon.style.display = "none";
-            }
-        }
-
+    function showStatus(text, type = "normal", showSpin = false) {
+        statusText.textContent = text;
         statusText.className = "status-text";
-        if (type === "success") statusText.classList.add("success");
         if (type === "error") statusText.classList.add("error");
+        if (type === "success") statusText.classList.add("success");
+        spinner.style.display = showSpin ? "block" : "none";
     }
 
-    async function triggerCopy(autoDismiss = true) {
-        setStatus("Scanning question...", "Reading assessment DOM", "📋", "normal", true);
+    async function initExtraction() {
+        showStatus("Scanning question...", "normal", true);
 
         try {
             const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
             const tab = tabs[0];
 
             if (!tab || !tab.id) {
-                setStatus("No active tab found", "Please retry", "❌", "error", false);
+                showStatus("No active tab found", "error", false);
                 return;
             }
 
             if (!tab.url || !tab.url.includes("gradstreet.instacks.co")) {
-                setStatus("Not Gradstreet", "Navigate to an assessment test", "⚠️", "error", false);
+                showStatus("Open a Gradstreet test tab", "error", false);
                 return;
             }
 
-            chrome.tabs.sendMessage(tab.id, { action: "GET_QUESTION" }, async (response) => {
+            chrome.tabs.sendMessage(tab.id, { action: "GET_QUESTION" }, (response) => {
                 if (chrome.runtime.lastError || !response) {
-                    setStatus("Unable to reach page", "Try refreshing the test tab", "❌", "error", false);
+                    showStatus("Could not reach page (Try refresh)", "error", false);
                     return;
                 }
 
                 if (response.success && response.text) {
-                    try {
-                        await navigator.clipboard.writeText(response.text);
-                        setStatus("✅ Question Copied!", `${response.length} characters copied`, "✅", "success", false);
+                    questionData = response.text;
 
-                        if (autoDismiss && !cancelAutoClose) {
-                            closeTimer = setTimeout(() => {
-                                window.close();
-                            }, 800);
-                        }
-                    } catch (err) {
-                        setStatus("Clipboard error", "Permissions required", "❌", "error", false);
-                    }
+                    // Hide status container and reveal draggable box
+                    statusContainer.style.display = "none";
+                    dragBox.style.display = "flex";
+
+                    charCount.textContent = `${response.length} chars`;
                 } else {
-                    setStatus("Question not detected", response.error || "No question found", "❌", "error", false);
+                    showStatus("Question not detected", "error", false);
                 }
             });
         } catch (err) {
-            setStatus("Detection error", err.message, "❌", "error", false);
+            showStatus("Scan error: " + err.message, "error", false);
         }
     }
 
-    recopyBtn.addEventListener("click", () => {
-        cancelAutoClose = true;
-        triggerCopy(false);
+    // ==========================================
+    // HTML5 DRAG & DROP (ZERO CLIPBOARD TOUCHED)
+    // ==========================================
+    dragBox.addEventListener("dragstart", (event) => {
+        if (!questionData) {
+            event.preventDefault();
+            return;
+        }
+
+        // Set plain text data for native OS drag & drop
+        event.dataTransfer.setData("text/plain", questionData);
+        event.dataTransfer.effectAllowed = "copyMove";
+
+        dragBox.classList.add("dragging");
+        dragSub.textContent = "Drop into ChatGPT, Notepad, VS Code...";
     });
 
-    // Automatically copy on popup click/open
-    triggerCopy(true);
+    dragBox.addEventListener("dragend", (event) => {
+        dragBox.classList.remove("dragging");
+
+        // When user releases the drop into another window
+        dragSub.textContent = "✅ Dropped successfully!";
+
+        setTimeout(() => {
+            window.close();
+        }, 400);
+    });
+
+    initExtraction();
 });

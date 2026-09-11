@@ -283,19 +283,6 @@
     // 3. KEYBOARD SHORTCUTS & MONACO PASTE
     // ==========================================
 
-    // Alt + C: Stealth instant copy from page
-    document.addEventListener("keydown", async (event) => {
-        if (event.altKey && event.key.toLowerCase() === "c") {
-            const questionText = extractQuestionText();
-            if (questionText) {
-                try {
-                    await navigator.clipboard.writeText(questionText);
-                } catch (e) {
-                    console.error("[Gradstreet Helper] Clipboard write error:", e);
-                }
-            }
-        }
-    }, true);
 
     // Ctrl + V / Cmd + V: Monaco Paste Backup
     document.addEventListener("keydown", async (event) => {
