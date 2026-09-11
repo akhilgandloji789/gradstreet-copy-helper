@@ -9,58 +9,71 @@
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", sans-serif;
         }
 
-        body {
-            width: 290px;
-            background: #0f172a;
-            color: #f8fafc;
+        html, body {
+            width: 320px;
+            background: rgba(10, 12, 18, 0.88);
+            backdrop-filter: blur(24px) saturate(190%);
+            -webkit-backdrop-filter: blur(24px) saturate(190%);
+            color: #f1f5f9;
             padding: 14px;
-            border-radius: 10px;
+            border-radius: 12px;
             overflow: hidden;
-            user-select: none;
         }
 
+        /* HEADER */
         .header {
             display: flex;
             align-items: center;
             justify-content: space-between;
             margin-bottom: 12px;
             padding-bottom: 8px;
-            border-bottom: 1px solid #334155;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
         }
 
         .title {
             font-size: 13px;
             font-weight: 600;
-            color: #e2e8f0;
+            color: #ffffff;
             display: flex;
             align-items: center;
-            gap: 6px;
+            gap: 7px;
+            letter-spacing: 0.3px;
+        }
+
+        .title-dot {
+            width: 7px;
+            height: 7px;
+            background: #38bdf8;
+            border-radius: 50%;
+            box-shadow: 0 0 8px #38bdf8;
         }
 
         .badge {
             font-size: 10px;
-            background: #10b981;
-            color: #ffffff;
+            background: rgba(56, 189, 248, 0.15);
+            color: #38bdf8;
+            border: 1px solid rgba(56, 189, 248, 0.3);
             padding: 2px 7px;
-            border-radius: 4px;
+            border-radius: 20px;
             font-weight: 600;
-            letter-spacing: 0.3px;
+            letter-spacing: 0.4px;
         }
 
+        /* STATUS */
         .status-container {
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 8px;
             padding: 10px;
-            background: #1e293b;
-            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 8px;
             margin-bottom: 10px;
-            border: 1px solid #334155;
-            min-height: 44px;
+            min-height: 42px;
         }
 
         .status-text {
@@ -73,15 +86,10 @@
             color: #f87171;
         }
 
-        .status-text.success {
-            color: #34d399;
-            font-weight: 600;
-        }
-
         .spinner {
             width: 14px;
             height: 14px;
-            border: 2px solid #334155;
+            border: 2px solid rgba(255, 255, 255, 0.15);
             border-top-color: #38bdf8;
             border-radius: 50%;
             animation: spin 0.6s linear infinite;
@@ -91,51 +99,51 @@
             to { transform: rotate(360deg); }
         }
 
-        /* DRAG AND DROP BOX */
+        /* GLASS DRAG BOX */
         .drag-box {
             display: none;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             gap: 6px;
-            padding: 16px 12px;
-            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-            border: 2px dashed #38bdf8;
-            border-radius: 8px;
+            padding: 14px 12px;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.02) 100%);
+            border: 1.5px dashed rgba(56, 189, 248, 0.5);
+            border-radius: 10px;
             cursor: grab;
-            transition: all 0.2s ease;
-            box-shadow: 0 4px 12px rgba(56, 189, 248, 0.1);
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            user-select: none;
         }
 
         .drag-box:hover {
-            border-color: #60a5fa;
-            background: #1e293b;
+            border-color: #38bdf8;
+            background: linear-gradient(135deg, rgba(56, 189, 248, 0.12) 0%, rgba(255, 255, 255, 0.04) 100%);
             transform: translateY(-1px);
-            box-shadow: 0 6px 16px rgba(56, 189, 248, 0.2);
+            box-shadow: 0 8px 24px rgba(56, 189, 248, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.2);
         }
 
         .drag-box:active,
         .drag-box.dragging {
             cursor: grabbing;
             opacity: 0.6;
-            border-color: #10b981;
+            border-color: #34d399;
             transform: scale(0.98);
         }
 
         .drag-header {
             display: flex;
             align-items: center;
-            gap: 8px;
-            color: #38bdf8;
-            font-weight: 700;
+            gap: 7px;
+            color: #ffffff;
+            font-weight: 600;
             font-size: 13px;
         }
 
-        .drag-icon-dots {
-            font-size: 18px;
+        .drag-dots {
+            font-size: 16px;
+            color: #38bdf8;
             line-height: 1;
-            letter-spacing: -2px;
-            color: #94a3b8;
         }
 
         .drag-sub {
@@ -144,33 +152,86 @@
             text-align: center;
         }
 
-        .footer-note {
+        /* PREVIEW CONTAINER */
+        .preview-box {
+            display: none;
             margin-top: 10px;
+            background: rgba(0, 0, 0, 0.45);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 8px;
+            padding: 8px;
+            max-height: 80px;
+            overflow-y: auto;
+            font-size: 11px;
+            color: #cbd5e1;
+            line-height: 1.4;
+            user-select: text;
+            cursor: text;
+            white-space: pre-wrap;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255,255,255,0.2) transparent;
+        }
+
+        /* ACTIONS */
+        .action-row {
+            display: flex;
+            gap: 6px;
+            margin-top: 10px;
+        }
+
+        .btn-glass {
+            flex: 1;
+            padding: 7px 10px;
+            font-size: 11px;
+            font-weight: 500;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.06);
+            color: #e2e8f0;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            transition: all 0.15s ease;
+        }
+
+        .btn-glass:hover {
+            background: rgba(255, 255, 255, 0.12);
+            border-color: rgba(255, 255, 255, 0.2);
+            color: #ffffff;
+        }
+
+        .footer-info {
             display: flex;
             align-items: center;
             justify-content: space-between;
+            margin-top: 10px;
+            padding-top: 6px;
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
             font-size: 10px;
             color: #64748b;
-            padding-top: 6px;
         }
 
-        .shield-tag {
-            display: flex;
-            align-items: center;
-            gap: 4px;
+        .safe-tag {
             color: #34d399;
             font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 3px;
         }
     </style>
 </head>
 <body>
     <div class="header">
         <div class="title">
-            <span>📋</span> Gradstreet Helper
+            <span class="title-dot"></span>
+            Gradstreet Helper
         </div>
-        <span class="badge">No Clipboard</span>
+        <span class="badge">Glass Stealth</span>
     </div>
 
+    <!-- SCANNING STATUS -->
     <div class="status-container" id="status-container">
         <div class="spinner" id="spinner"></div>
         <span class="status-text" id="status-text">Scanning question...</span>
@@ -179,16 +240,29 @@
     <!-- DRAGGABLE CARD -->
     <div class="drag-box" id="drag-box" draggable="true">
         <div class="drag-header">
-            <span class="drag-icon-dots">⠿</span>
+            <span class="drag-dots">⠿</span>
             <span>Drag Question to Any App</span>
         </div>
         <div class="drag-sub" id="drag-sub">
-            Drop into ChatGPT, Notepad, VS Code...
+            Grab & drop into ChatGPT, Notepad, VS Code...
         </div>
     </div>
 
-    <div class="footer-note">
-        <span class="shield-tag">🛡️ Zero Clipboard Trace</span>
+    <!-- GLASS PREVIEW -->
+    <div class="preview-box" id="preview-box" title="You can also highlight and drag text directly from here"></div>
+
+    <!-- EXTRA ACTION -->
+    <div class="action-row" id="action-row" style="display: none;">
+        <button class="btn-glass" id="pin-btn">
+            <span>📌</span> Pin to Page
+        </button>
+        <button class="btn-glass" id="select-btn">
+            <span>📑</span> Select Text
+        </button>
+    </div>
+
+    <div class="footer-info">
+        <span class="safe-tag">🛡️ Zero Clipboard Trace</span>
         <span id="char-count"></span>
     </div>
 

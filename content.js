@@ -277,7 +277,138 @@
             }
             return true;
         }
+
+        if (request.action === "PIN_QUESTION") {
+            createFloatingGlassWidget(request.text || extractQuestionText());
+            sendResponse({ success: true });
+            return true;
+        }
     });
 
+    // ==========================================
+    // 3. ON-PAGE GLASS FLOATING CARD (ON DEMAND ONLY)
+    // ==========================================
+    function createFloatingGlassWidget(questionText) {
+        if (!questionText) return;
+
+        const existing = document.getElementById("gradstreet-glass-widget");
+        if (existing) existing.remove();
+
+        const widget = document.createElement("div");
+        widget.id = "gradstreet-glass-widget";
+
+        Object.assign(widget.style, {
+            position: "fixed",
+            bottom: "24px",
+            right: "24px",
+            width: "320px",
+            background: "rgba(10, 12, 18, 0.88)",
+            backdropFilter: "blur(24px) saturate(190%)",
+            webkitBackdropFilter: "blur(24px) saturate(190%)",
+            border: "1px solid rgba(255, 255, 255, 0.15)",
+            borderRadius: "12px",
+            boxShadow: "0 20px 48px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.15)",
+            color: "#f8fafc",
+            zIndex: "2147483647",
+            padding: "14px",
+            fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+            fontSize: "12px",
+            display: "flex",
+            flexDirection: "column",
+            gap: "10px",
+            transition: "opacity 0.2s ease, transform 0.2s ease"
+        });
+
+        widget.innerHTML = `
+            <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 8px; cursor: move;" id="gradstreet-widget-header">
+                <div style="display: flex; align-items: center; gap: 6px; font-weight: 600; color: #ffffff; font-size: 13px;">
+                    <span style="width: 7px; height: 7px; background: #38bdf8; border-radius: 50%; box-shadow: 0 0 8px #38bdf8;"></span>
+                    Gradstreet Question
+                </div>
+                <button id="gradstreet-widget-close" style="background: transparent; border: none; color: #94a3b8; font-size: 14px; cursor: pointer; padding: 2px 6px; border-radius: 4px; transition: all 0.15s;">✕</button>
+            </div>
+
+            <div id="gradstreet-page-drag" draggable="true" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 12px; background: linear-gradient(135deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.02) 100%); border: 1.5px dashed rgba(56, 189, 248, 0.5); border-radius: 8px; cursor: grab; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.3); user-select: none;">
+                <div style="color: #ffffff; font-weight: 600; font-size: 12px; display: flex; align-items: center; gap: 6px;">
+                    <span style="color: #38bdf8; font-size: 15px;">⠿</span> Drag Question to Any App
+                </div>
+                <div id="gradstreet-page-drag-sub" style="color: #94a3b8; font-size: 10px;">
+                    Drop into ChatGPT, Notepad, VS Code...
+                </div>
+            </div>
+
+            <div style="max-height: 90px; overflow-y: auto; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; padding: 8px; font-size: 11px; color: #cbd5e1; line-height: 1.4; white-space: pre-wrap; user-select: text;" id="gradstreet-widget-text"></div>
+        `;
+
+        document.body.appendChild(widget);
+
+        // Populate text
+        const textContainer = widget.querySelector("#gradstreet-widget-text");
+        textContainer.textContent = questionText;
+
+        // Close button
+        const closeBtn = widget.querySelector("#gradstreet-widget-close");
+        closeBtn.addEventListener("click", () => widget.remove());
+        closeBtn.addEventListener("mouseenter", () => closeBtn.style.color = "#ffffff");
+        closeBtn.addEventListener("mouseleave", () => closeBtn.style.color = "#94a3b8");
+
+        // Draggable card
+        const dragHandle = widget.querySelector("#gradstreet-page-drag");
+        const dragSub = widget.querySelector("#gradstreet-page-drag-sub");
+
+        dragHandle.addEventListener("dragstart", (e) => {
+            e.dataTransfer.setData("text/plain", questionText);
+            e.dataTransfer.setData("Text", questionText);
+            e.dataTransfer.setData("text/html", `<pre style="white-space: pre-wrap;">${questionText}</pre>`);
+            e.dataTransfer.effectAllowed = "copyMove";
+            dragHandle.style.opacity = "0.5";
+            dragSub.textContent = "Release over your target window...";
+        });
+
+        dragHandle.addEventListener("dragend", (e) => {
+            dragHandle.style.opacity = "1";
+            if (e.dataTransfer.dropEffect && e.dataTransfer.dropEffect !== "none") {
+                dragSub.textContent = "✅ Dropped successfully!";
+                setTimeout(() => widget.remove(), 800);
+            } else {
+                dragSub.textContent = "Drop into ChatGPT, Notepad, VS Code...";
+            }
+        });
+
+        // Make entire widget movable on screen via header
+        const header = widget.querySelector("#gradstreet-widget-header");
+        let isMoving = false;
+        let startX = 0, startY = 0;
+        let initialX = 0, initialY = 0;
+
+        header.addEventListener("mousedown", (e) => {
+            if (e.target === closeBtn) return;
+            isMoving = true;
+            startX = e.clientX;
+            startY = e.clientY;
+            const rect = widget.getBoundingClientRect();
+            initialX = rect.left;
+            initialY = rect.top;
+
+            const onMouseMove = (moveEvent) => {
+                if (!isMoving) return;
+                const dx = moveEvent.clientX - startX;
+                const dy = moveEvent.clientY - startY;
+                widget.style.left = `${initialX + dx}px`;
+                widget.style.top = `${initialY + dy}px`;
+                widget.style.right = "auto";
+                widget.style.bottom = "auto";
+            };
+
+            const onMouseUp = () => {
+                isMoving = false;
+                window.removeEventListener("mousemove", onMouseMove);
+                window.removeEventListener("mouseup", onMouseUp);
+            };
+
+            window.addEventListener("mousemove", onMouseMove);
+            window.addEventListener("mouseup", onMouseUp);
+        });
+    }
 
 })();

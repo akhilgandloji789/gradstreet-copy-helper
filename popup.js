@@ -4,7 +4,11 @@ document.addEventListener("DOMContentLoaded", () => {
     const spinner = document.getElementById("spinner");
     const dragBox = document.getElementById("drag-box");
     const dragSub = document.getElementById("drag-sub");
+    const previewBox = document.getElementById("preview-box");
+    const actionRow = document.getElementById("action-row");
     const charCount = document.getElementById("char-count");
+    const pinBtn = document.getElementById("pin-btn");
+    const selectBtn = document.getElementById("select-btn");
 
     let questionData = "";
 
@@ -12,8 +16,14 @@ document.addEventListener("DOMContentLoaded", () => {
         statusText.textContent = text;
         statusText.className = "status-text";
         if (type === "error") statusText.classList.add("error");
-        if (type === "success") statusText.classList.add("success");
         spinner.style.display = showSpin ? "block" : "none";
+    }
+
+    function escapeHtml(str) {
+        return str
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;");
     }
 
     async function initExtraction() {
@@ -35,18 +45,21 @@ document.addEventListener("DOMContentLoaded", () => {
 
             chrome.tabs.sendMessage(tab.id, { action: "GET_QUESTION" }, (response) => {
                 if (chrome.runtime.lastError || !response) {
-                    showStatus("Could not reach page (Try refresh)", "error", false);
+                    showStatus("Could not reach page (Try refreshing test)", "error", false);
                     return;
                 }
 
                 if (response.success && response.text) {
                     questionData = response.text;
 
-                    // Hide status container and reveal draggable box
+                    // Reveal components
                     statusContainer.style.display = "none";
                     dragBox.style.display = "flex";
+                    previewBox.style.display = "block";
+                    previewBox.textContent = questionData;
+                    actionRow.style.display = "flex";
 
-                    charCount.textContent = `${response.length} chars`;
+                    charCount.textContent = `${response.length} chars ready`;
                 } else {
                     showStatus("Question not detected", "error", false);
                 }
@@ -57,7 +70,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // ==========================================
-    // HTML5 DRAG & DROP (ZERO CLIPBOARD TOUCHED)
+    // HTML5 DRAG & DROP WITH MULTI-MIME SUPPORT
     // ==========================================
     dragBox.addEventListener("dragstart", (event) => {
         if (!questionData) {
@@ -65,23 +78,55 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
-        // Set plain text data for native OS drag & drop
+        // Set plain text and HTML representations
         event.dataTransfer.setData("text/plain", questionData);
+        event.dataTransfer.setData("Text", questionData);
+        event.dataTransfer.setData("text/html", `<pre style="white-space: pre-wrap; font-family: monospace;">${escapeHtml(questionData)}</pre>`);
         event.dataTransfer.effectAllowed = "copyMove";
 
         dragBox.classList.add("dragging");
-        dragSub.textContent = "Drop into ChatGPT, Notepad, VS Code...";
+        dragSub.textContent = "Release over ChatGPT / Notepad...";
     });
 
     dragBox.addEventListener("dragend", (event) => {
         dragBox.classList.remove("dragging");
 
-        // When user releases the drop into another window
-        dragSub.textContent = "✅ Dropped successfully!";
+        // If drop occurred
+        if (event.dataTransfer.dropEffect && event.dataTransfer.dropEffect !== "none") {
+            dragSub.textContent = "✅ Dropped successfully!";
+            setTimeout(() => {
+                window.close();
+            }, 600);
+        } else {
+            dragSub.textContent = "Grab & drop into ChatGPT, Notepad, VS Code...";
+        }
+    });
 
-        setTimeout(() => {
-            window.close();
-        }, 400);
+    // Select text button
+    selectBtn.addEventListener("click", () => {
+        const range = document.createRange();
+        range.selectNodeContents(previewBox);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+        dragSub.textContent = "Text selected! You can drag selection.";
+    });
+
+    // Pin to page button (creates on-page glassy widget)
+    pinBtn.addEventListener("click", async () => {
+        try {
+            const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+            if (tabs[0] && tabs[0].id) {
+                chrome.tabs.sendMessage(tabs[0].id, {
+                    action: "PIN_QUESTION",
+                    text: questionData
+                });
+                pinBtn.textContent = "✅ Pinned to Page!";
+                setTimeout(() => window.close(), 500);
+            }
+        } catch (e) {
+            console.error("Pin failed:", e);
+        }
     });
 
     initExtraction();
