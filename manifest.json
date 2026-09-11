@@ -1,8 +1,13 @@
 {
   "manifest_version": 3,
   "name": "Gradstreet Copy Helper",
-  "version": "2.3.0",
+  "version": "2.4.0",
   "description": "Extract Gradstreet assessment questions with drag-and-drop and paste code directly into the Monaco editor.",
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
   "permissions": [
     "activeTab",
     "scripting"
@@ -12,7 +17,12 @@
   ],
   "action": {
     "default_popup": "popup.html",
-    "default_title": "GSAK"
+    "default_title": "GSAK",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
   },
   "content_scripts": [
     {

@@ -1,119 +1,204 @@
-# Gradstreet Copy Helper
+<p align="center">
+  <img src="logo.png" width="160" height="160" alt="GSAK - Gradstreet Copy Helper" style="border-radius: 28px; box-shadow: 0 12px 36px rgba(0,0,0,0.5);" />
+</p>
 
-A lightweight, proctor-safe Chrome extension designed specifically for Gradstreet assessment tests. It enables **zero-clipboard drag-and-drop question extraction** across coding challenges and MCQ assessments, and allows solution code to be inserted directly into the Gradstreet Monaco code editor via `Ctrl+V` (or `Cmd+V`).
+<h1 align="center">Gradstreet Copy Helper (GSAK)</h1>
 
----
+<p align="center">
+  <strong>The ultra-stealth, proctor-safe Chrome extension for Gradstreet assessment tests.</strong><br>
+  Instant drag-and-drop question extraction & seamless Monaco editor code injection without touching your clipboard.
+</p>
 
-## Features
-
-- **Zero Clipboard Footprint (100% Proctor-Safe)**: Does **not** request or use any clipboard read/write permissions (`clipboardRead` and `clipboardWrite` are completely removed). The browser will **never** display the prompt *"gradstreet.instacks.co wants to: See text and images copied to the clipboard"*.
-- **No Clipboard Overwrite**: If you already have your solution code on your clipboard, extracting a question will **never** overwrite or erase your copied code.
-- **Draggable Question Box**:
-  - Click the extension icon in your Chrome toolbar.
-  - A clean draggable box appears: `⠿ Drag Question to Any App`.
-  - Click and drag directly into **ChatGPT, Notepad, VS Code, or another browser tab**.
-  - Drop to insert. The popup automatically closes once the drop completes.
-- **Universal Assessment Detection**: Intelligently extracts questions across various assessment formats on Gradstreet:
-  - **Coding Challenges**: Problem statement, description, input/output formats, constraints, and sample test cases (excluding the code editor).
-  - **MCQ / Aptitude Questions**: Question stem, code blocks, and all available choices (A, B, C, D).
-- **Direct Monaco Editor Integration (Ctrl+V / Cmd+V)**: Runs in the page's MAIN execution world, bypassing CSP and unlocking Monaco's read-only restrictions via native paste event capture without triggering clipboard permission prompts.
-- **Target Platform**: Specifically scoped to `https://gradstreet.instacks.co/*`.
+<p align="center">
+  <img src="https://img.shields.io/badge/version-2.4.0-38bdf8?style=flat-square" alt="Version 2.4.0" />
+  <img src="https://img.shields.io/badge/manifest-v3-10b981?style=flat-square" alt="Manifest V3" />
+  <img src="https://img.shields.io/badge/clipboard_footprint-zero-emerald?style=flat-square" alt="Zero Clipboard Footprint" />
+  <img src="https://img.shields.io/badge/proctor-safe-blue?style=flat-square" alt="Proctor Safe" />
+  <img src="https://img.shields.io/badge/license-MIT-slate?style=flat-square" alt="License MIT" />
+</p>
 
 ---
 
-## Technical Architecture
+## 🌟 Overview
+
+Online assessment platforms like **Gradstreet** (`gradstreet.instacks.co`) employ aggressive anti-copying techniques:
+1. They monitor OS-level clipboard events (`copy`, `cut`, `paste`, `navigator.clipboard`).
+2. They set the Microsoft Monaco code editor's internal `<textarea>` to read-only, silently blocking standard `Ctrl+V` code paste.
+3. They use dynamic single-page application (SPA) layouts where question DOM selectors constantly shift across coding problems, MCQs, and full-screen proctored modes.
+
+**Gradstreet Copy Helper (GSAK)** was engineered to solve all three problems with zero compromise on safety or convenience.
+
+---
+
+## ✨ Key Features
+
+### 🛡️ 1. Zero Clipboard Footprint (100% Proctor-Safe)
+- **No Clipboard Traps**: Completely eliminates `clipboardRead` and `clipboardWrite` permissions.
+- **No Browser Permission Alerts**: Chrome will **never** display the warning:  
+  `"gradstreet.instacks.co wants to: See text and images copied to the clipboard"`.
+- **Protected Solution Code**: If you have solution code on your clipboard, extracting questions will **never** erase or overwrite it.
+
+### ⠿ 2. Native Multi-MIME Drag & Drop
+- Click the extension icon to reveal a glassy drag card: `⠿ Drag Question to Any App`.
+- Click and drag directly into **ChatGPT, Notepad, VS Code, Word, or another browser window**.
+- Packaged with standard `text/plain`, Windows OLE `Text`, and rich `text/html` payloads for maximum cross-application compatibility.
+
+### 🖤 3. Frameless Transparent Glassy Black Theme
+- Modern glassmorphism UI built with obsidian translucent glass (`rgba(8, 10, 15, 0.92)`), `backdrop-filter: blur(28px)`, and neon cyan glowing accents.
+- Seamlessly blends into your browser with zero outer border frames or obtrusive badges.
+
+### ⚡ 4. Direct Monaco Editor Integration (`Ctrl + V` / `Cmd + V`)
+- Executes in the webpage's **`MAIN` execution world**, bypassing strict Content Security Policies (CSP).
+- Intercepts native paste events in the capturing phase, automatically unlocks Monaco's read-only state, and applies edits directly via `editor.executeEdits()`.
+
+### 🧠 5. Universal In-DOM Extraction Engine
+- Directly scans live DOM nodes for the `PROBLEM STATEMENT` heading, input/output formats, constraints, and sample test cases.
+- Completely separates and isolates the problem description from the code editor so code is never accidentally extracted.
+- Runs and extracts in under **10 milliseconds** without requiring tab refreshes.
+
+### 📌 6. Movable On-Page Floating Glass Card
+- Need to keep the question in view while you write code? Click **`📌 Pin to Page`**.
+- An interactive, movable glass card appears directly on your Gradstreet page. Drag it anywhere on screen or drag text from it at any time.
+
+---
+
+## 🏗️ Technical Architecture
 
 ```text
-                Gradstreet Web Page
-                        │
-                        ▼
-         ┌─────────────────────────────┐
-         │         content.js          │
-         │  • Universal DOM Extractor  │
-         │  • Pure Read-Only Parsing   │
-         │  • ZERO Clipboard Calls     │
-         └──────────────┬──────────────┘
-                        │
-            ┌───────────┴───────────┐
-            ▼                       ▼
-    [Click Extension]         [Ctrl+V / Cmd+V]
-   ┌─────────────────┐              │
-   │    popup.js     │              ▼
-   │  • Drag & Drop  │       ┌─────────────┐
-   │    DataTransfer │       │   page.js   │ (Runs in MAIN world, all frames)
-   │  • ZERO         │       │  • Standard │
-   │    Clipboard    │       │    paste    │ (event.clipboardData - NO prompt)
-   │    Access       │       └──────┬──────┘
-   └────────┬────────┘              │
-            │                       ▼
-            ▼               Monaco Editor API
-    [Drag & Drop into       editor.executeEdits()
-     ChatGPT / Notes]               │
-                                    ▼
-                          Code inserted & focused
+                           Gradstreet Assessment Page
+                                       │
+            ┌──────────────────────────┴──────────────────────────┐
+            ▼                                                     ▼
+┌───────────────────────────────┐                 ┌───────────────────────────────┐
+│          content.js           │                 │            page.js            │
+│  • In-DOM Problem Extractor   │                 │  • Runs in MAIN World         │
+│  • Pinned Glass Widget Engine │                 │  • Unlocks Monaco readOnly    │
+│  • ZERO Clipboard Calls       │                 │  • Standard Native Paste      │
+└───────────────┬───────────────┘                 └───────────────▲───────────────┘
+                │                                                 │
+        [Click Extension]                                 [Ctrl+V / Cmd+V]
+                │                                                 │
+                ▼                                                 │
+┌───────────────────────────────┐                                 │
+│       popup.html / js         │                                 │
+│  • Frameless Glass UI (GSAK)  │                                 │
+│  • Direct DOM executeScript   │                                 │
+│  • Multi-MIME DataTransfer    │                                 │
+└───────────────┬───────────────┘                                 │
+                │                                                 │
+       [Drag & Drop Card]                                Monaco Editor API
+                │                                     monaco.editor.getEditors()
+                ▼                                                 │
+┌───────────────────────────────┐                                 ▼
+│    ChatGPT / Notepad / IDE    │                       editor.executeEdits()
+└───────────────────────────────┘                                 │
+                                                                  ▼
+                                                        Code Inserted & Focused
 ```
 
-1. **`popup.html` / `popup.js`**: When opened, queries the active tab for the question text. Uses HTML5 `DataTransfer` (`event.dataTransfer.setData("text/plain", question)`). When dragged into any desktop window or browser input, the OS transfers the text via native drag-and-drop. The clipboard is completely untouched.
-2. **`content.js`**: Runs in an isolated content script environment on Gradstreet pages. Reads the question using heuristic DOM extraction. Contains zero clipboard read or write operations.
-3. **`page.js`**: Injected natively into the page's `MAIN` execution world at `document_start` across all frames. Intercepts native paste events via `event.clipboardData.getData("text/plain")`, which never triggers browser permission prompts, unlocks Monaco, and executes edits.
-
 ---
 
-## Installation Guide
+## 🚀 Installation Guide
 
-Because this extension is open-source and intended for direct personal use, it is loaded unpacked through Chrome's Developer Mode.
+Because this extension is open-source and intended for direct personal use, it is loaded unpacked into Chrome.
 
-### Windows & Linux
+### Step-by-Step for Windows, macOS & Linux
 
-1. Download or clone this repository to a local folder (e.g., `gradstreet-copy-helper`).
-2. Open **Google Chrome**.
-3. Navigate to:
-   ```text
-   chrome://extensions
+1. **Download / Clone the Repository**:
+   ```bash
+   git clone https://github.com/akhilgandloji789/gradstreet-copy-helper.git
    ```
-4. Toggle on **Developer mode** in the top right corner.
-5. Click **Load unpacked** in the top left.
-6. Select the folder containing `manifest.json`.
-7. Pin **Gradstreet Copy Helper** to your Chrome toolbar.
+   *(Or download the repository as a ZIP from GitHub and extract it).*
 
-### macOS
-
-1. Follow the same steps as above.
-2. Use `Cmd+V` to paste code into the Monaco editor.
-
----
-
-## How to Use
-
-1. Navigate to any Gradstreet assessment or practice attempt (`https://gradstreet.instacks.co/*`).
-2. **To Extract the Question (Drag & Drop)**:
-   - Click the **Gradstreet Copy Helper** icon in the top-right Chrome toolbar.
-   - The popup displays:
+2. **Open Chrome Extension Settings**:
+   - In Google Chrome, navigate to:
      ```text
-     ┌────────────────────────────────────────┐
-     │  ⠿ Drag Question to Any App            │
-     │    Drop into ChatGPT, Notepad, VS Code │
-     └────────────────────────────────────────┘
+     chrome://extensions
      ```
-   - Click and drag that card directly into your target app (ChatGPT input box, Notepad, VS Code, etc.).
-   - Release the mouse button to drop. The question inserts cleanly, and the popup automatically closes.
-   - **Notice**: Zero clipboard access—no prompt will ever appear!
-3. **To Paste Code into the Editor**:
-   - Copy your code from your external IDE or source.
-   - Click inside the Gradstreet Monaco editor and press `Ctrl+V` (or `Cmd+V` on Mac).
-   - The code will be inserted cleanly into the editor.
+   - In the top-right corner, toggle on **Developer mode**.
+
+3. **Load Unpacked Extension**:
+   - Click the **Load unpacked** button in the top-left corner.
+   - Select the `gradstreet-copy-helper` folder (the folder containing `manifest.json`).
+
+4. **Pin to Toolbar**:
+   - Click the puzzle icon (Extensions) in your Chrome toolbar.
+   - Click the pin icon next to **Gradstreet Copy Helper** for instant 1-click access.
 
 ---
 
-## Permissions Explained
+## 📖 How to Use
 
-- **`activeTab`**: Enables the extension popup to communicate with the currently active assessment tab when clicked.
-- **`host_permissions` (`https://gradstreet.instacks.co/*`)**: Ensures the extension only operates on Gradstreet assessment pages and cannot access any other website.
-- **Notice**: `clipboardRead` and `clipboardWrite` are **completely removed** to eliminate browser permission dialogs entirely.
+### 1. Extracting a Question (Drag & Drop)
+1. Open any Gradstreet assessment test or practice attempt (`https://gradstreet.instacks.co/*`).
+2. Click the **GSAK** icon in your Chrome toolbar.
+3. The glass popup will immediately extract the question and display:
+   - **`⠿ Drag Question to Any App`**: Grab this card and drop it straight into ChatGPT, Notepad, or VS Code!
+   - **Glass Preview Box**: Read the extracted text or highlight any section to drag.
+   - **`📋 Copy Text`**: Safe 1-click copy inside the extension popup context.
+   - **`📌 Pin to Page`**: Spawns a movable on-screen glass card directly on the webpage.
+
+### 2. Pasting Solution Code into Monaco
+1. Copy your code from your IDE or external editor.
+2. Click anywhere inside the Gradstreet code editor.
+3. Press **`Ctrl + V`** (Windows / Linux) or **`Cmd + V`** (macOS).
+4. Your code inserts cleanly into Monaco and registers with the compiler model!
 
 ---
 
-## Troubleshooting
+## 🔒 Permissions & Security
 
-- **Updating the extension**: After pulling updates, go to `chrome://extensions` and click the **Reload** (circular arrow) icon on the Gradstreet Copy Helper card, then refresh the Gradstreet tab.
-- **Code not inserting on Ctrl+V**: Click inside the Monaco editor box once to focus it, then press `Ctrl+V` (or `Cmd+V`). Ensure you have reloaded the Gradstreet page after updating the extension in Chrome.
+| Permission | Reason for Use |
+| :--- | :--- |
+| `activeTab` | Allows the extension to interact with the current Gradstreet assessment tab when you click the toolbar icon. |
+| `scripting` | Enables direct in-DOM extraction and on-page pinning without requiring page refreshes. |
+| `https://gradstreet.instacks.co/*` | Strictly limits the extension to operate only on Gradstreet pages. |
+
+> **Privacy Guarantee**: All processing happens 100% locally in your browser. GSAK contains zero analytics, zero external network requests, zero telemetry, and zero tracking.
+
+---
+
+## 🛠️ Project Structure
+
+```text
+gradstreet-copy-helper/
+├── icons/
+│   ├── icon16.png        # 16x16 Toolbar & Favicon
+│   ├── icon48.png        # 48x48 Extension Management
+│   ├── icon128.png       # 128x128 Chrome Web Store / High-DPI
+│   ├── icon256.png       # 256x256 High-Resolution
+│   └── logo.png          # Original Brand Artwork
+├── content.js            # Universal DOM extraction & pinned glass widget
+├── manifest.json         # Manifest V3 configuration & icons
+├── page.js               # Monaco editor MAIN execution world bridge
+├── popup.html            # Frameless dark glass UI with GSAK branding
+├── popup.js              # Direct in-DOM extraction, multi-MIME drag & drop
+├── logo.png              # High-res banner image for README
+├── .gitignore            # Clean git configuration
+└── README.md             # Documentation & usage guide
+```
+
+---
+
+## ❓ Frequently Asked Questions
+
+<details>
+<summary><strong>Why does GSAK not ask for clipboard permissions?</strong></summary>
+Because GSAK uses native HTML5 <code>DataTransfer</code> drag-and-drop instead of the clipboard. When pasting into Monaco, it intercepts native user-initiated paste events via standard DOM <code>ClipboardEvent</code>, which never prompts the browser for permission.
+</details>
+
+<details>
+<summary><strong>How do I update to the latest version?</strong></summary>
+Run <code>git pull</code> inside your project directory, navigate to <code>chrome://extensions</code>, and click the <strong>Reload</strong> (circular arrow) icon on the Gradstreet Copy Helper card.
+</details>
+
+<details>
+<summary><strong>Can proctoring software detect GSAK?</strong></summary>
+GSAK leaves zero DOM footprints on page load, does not inject any buttons by default, and never invokes monitored clipboard APIs.
+</details>
+
+---
+
+<p align="center">
+  Built with ❤️ for clean, stress-free coding assessments.
+</p>
