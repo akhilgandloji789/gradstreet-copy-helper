@@ -1,0 +1,10 @@
+# Packaging and archives
+*.zip
+*.tar.gz
+*.crx
+
+# OS & Editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

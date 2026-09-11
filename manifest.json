@@ -1,0 +1,48 @@
+{
+  "manifest_version": 3,
+  "name": "Gradstreet Copy Helper",
+  "version": "2.2.0",
+  "description": "Copy Gradstreet assessment questions and paste code directly into the Monaco editor.",
+  "permissions": [
+    "clipboardRead",
+    "clipboardWrite",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "https://gradstreet.instacks.co/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Gradstreet Copy Helper (Click to Copy Question)"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://gradstreet.instacks.co/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "page.js"
+      ],
+      "matches": [
+        "https://gradstreet.instacks.co/*"
+      ]
+    }
+  ],
+  "commands": {
+    "copy-question": {
+      "suggested_key": {
+        "default": "Alt+C",
+        "mac": "Alt+C"
+      },
+      "description": "Copy current assessment question"
+    }
+  }
+}
