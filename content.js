@@ -279,38 +279,5 @@
         }
     });
 
-    // ==========================================
-    // 3. KEYBOARD SHORTCUTS & MONACO PASTE
-    // ==========================================
-
-
-    // Ctrl + V / Cmd + V: Monaco Paste Backup
-    document.addEventListener("keydown", async (event) => {
-        if (
-            (event.ctrlKey || event.metaKey) &&
-            event.key.toLowerCase() === "v"
-        ) {
-            const active = document.activeElement;
-            const isRegularInput = active && (
-                active.tagName === "INPUT" ||
-                (active.tagName === "TEXTAREA" && !active.classList.contains("inputarea") && !active.closest(".monaco-editor"))
-            );
-
-            // If user is inside a regular form input outside Monaco, do not intercept
-            if (isRegularInput) return;
-
-            try {
-                const text = await navigator.clipboard.readText();
-                if (text) {
-                    window.postMessage({
-                        type: "GRADSTREET_PASTE",
-                        text: text
-                    }, "*");
-                }
-            } catch (e) {
-                // If readText fails, the native paste event listener in page.js will capture clipboardData
-            }
-        }
-    }, true);
 
 })();

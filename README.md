@@ -6,7 +6,7 @@ A lightweight, proctor-safe Chrome extension designed specifically for Gradstree
 
 ## Features
 
-- **Zero-Clipboard Extraction (100% Proctor-Safe)**: Does **not** save extracted questions into your system clipboard! It uses HTML5 native `DataTransfer` drag-and-drop. Proctoring software listening for clipboard events detects absolutely nothing.
+- **Zero Clipboard Footprint (100% Proctor-Safe)**: Does **not** request or use any clipboard read/write permissions (`clipboardRead` and `clipboardWrite` are completely removed). The browser will **never** display the prompt *"gradstreet.instacks.co wants to: See text and images copied to the clipboard"*.
 - **No Clipboard Overwrite**: If you already have your solution code on your clipboard, extracting a question will **never** overwrite or erase your copied code.
 - **Draggable Question Box**:
   - Click the extension icon in your Chrome toolbar.
@@ -16,7 +16,7 @@ A lightweight, proctor-safe Chrome extension designed specifically for Gradstree
 - **Universal Assessment Detection**: Intelligently extracts questions across various assessment formats on Gradstreet:
   - **Coding Challenges**: Problem statement, description, input/output formats, constraints, and sample test cases (excluding the code editor).
   - **MCQ / Aptitude Questions**: Question stem, code blocks, and all available choices (A, B, C, D).
-- **Direct Monaco Editor Integration (Ctrl+V / Cmd+V)**: Runs directly in the page's MAIN execution world, bypassing CSP and unlocking Monaco's read-only restrictions so you can paste code into the editor natively.
+- **Direct Monaco Editor Integration (Ctrl+V / Cmd+V)**: Runs in the page's MAIN execution world, bypassing CSP and unlocking Monaco's read-only restrictions via native paste event capture without triggering clipboard permission prompts.
 - **Target Platform**: Specifically scoped to `https://gradstreet.instacks.co/*`.
 
 ---
@@ -30,7 +30,8 @@ A lightweight, proctor-safe Chrome extension designed specifically for Gradstree
          ┌─────────────────────────────┐
          │         content.js          │
          │  • Universal DOM Extractor  │
-         │  • Read-only Heuristics     │
+         │  • Pure Read-Only Parsing   │
+         │  • ZERO Clipboard Calls     │
          └──────────────┬──────────────┘
                         │
             ┌───────────┴───────────┐
@@ -40,19 +41,21 @@ A lightweight, proctor-safe Chrome extension designed specifically for Gradstree
    │    popup.js     │              ▼
    │  • Drag & Drop  │       ┌─────────────┐
    │    DataTransfer │       │   page.js   │ (Runs in MAIN world, all frames)
-   │  • ZERO         │       └──────┬──────┘
-   │    Clipboard    │              │
-   │    Writes!      │              ▼
-   └────────┬────────┘      Monaco Editor API
-            │               editor.executeEdits()
-            ▼                       │
-    [Drag & Drop into               ▼
-     ChatGPT / Notes]     Code inserted & focused
+   │  • ZERO         │       │  • Standard │
+   │    Clipboard    │       │    paste    │ (event.clipboardData - NO prompt)
+   │    Access       │       └──────┬──────┘
+   └────────┬────────┘              │
+            │                       ▼
+            ▼               Monaco Editor API
+    [Drag & Drop into       editor.executeEdits()
+     ChatGPT / Notes]               │
+                                    ▼
+                          Code inserted & focused
 ```
 
-1. **`popup.html` / `popup.js`**: When opened, queries the active tab for the question text. Populates the `drag-box` with `event.dataTransfer.setData("text/plain", question)`. When dragged into any desktop window or browser input, Windows natively transfers the text via OLE drag-and-drop. The clipboard is completely bypassed.
-2. **`content.js`**: Runs in an isolated content script environment on Gradstreet pages. Reads the question using heuristic DOM extraction. Contains zero clipboard write operations.
-3. **`page.js`**: Injected natively into the page's `MAIN` execution world at `document_start` across all frames. Intercepts native paste events to unlock Monaco and execute edits.
+1. **`popup.html` / `popup.js`**: When opened, queries the active tab for the question text. Uses HTML5 `DataTransfer` (`event.dataTransfer.setData("text/plain", question)`). When dragged into any desktop window or browser input, the OS transfers the text via native drag-and-drop. The clipboard is completely untouched.
+2. **`content.js`**: Runs in an isolated content script environment on Gradstreet pages. Reads the question using heuristic DOM extraction. Contains zero clipboard read or write operations.
+3. **`page.js`**: Injected natively into the page's `MAIN` execution world at `document_start` across all frames. Intercepts native paste events via `event.clipboardData.getData("text/plain")`, which never triggers browser permission prompts, unlocks Monaco, and executes edits.
 
 ---
 
@@ -94,7 +97,7 @@ Because this extension is open-source and intended for direct personal use, it i
      ```
    - Click and drag that card directly into your target app (ChatGPT input box, Notepad, VS Code, etc.).
    - Release the mouse button to drop. The question inserts cleanly, and the popup automatically closes.
-   - **Notice**: Your clipboard is completely untouched!
+   - **Notice**: Zero clipboard access—no prompt will ever appear!
 3. **To Paste Code into the Editor**:
    - Copy your code from your external IDE or source.
    - Click inside the Gradstreet Monaco editor and press `Ctrl+V` (or `Cmd+V` on Mac).
@@ -104,10 +107,9 @@ Because this extension is open-source and intended for direct personal use, it i
 
 ## Permissions Explained
 
-- **`clipboardRead`**: Required to read code from your clipboard when you press `Ctrl+V` / `Cmd+V` to insert into the Monaco editor.
 - **`activeTab`**: Enables the extension popup to communicate with the currently active assessment tab when clicked.
 - **`host_permissions` (`https://gradstreet.instacks.co/*`)**: Ensures the extension only operates on Gradstreet assessment pages and cannot access any other website.
-- **Notice**: `clipboardWrite` is **not requested and not used**!
+- **Notice**: `clipboardRead` and `clipboardWrite` are **completely removed** to eliminate browser permission dialogs entirely.
 
 ---
 
